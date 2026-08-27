@@ -1,78 +1,21 @@
-import React, { useEffect, useState } from 'react';
-import { Main } from '@redhat-cloud-services/frontend-components/Main';
-import { useSelector, useDispatch } from 'react-redux';
-import ErrorHandler from '../../PresentationalComponents/Snippets/ErrorHandler';
-import {
-  changeSystemsParams,
-  setSystemParams,
-  clearInventoryReducer,
-} from '../../store/Actions/Actions';
-import { decodeQueryparams } from '../../Utilities/Helpers';
-import { useActivateRemediationModal } from './SystemsListAssets';
-import SystemsStatusReport from '../../PresentationalComponents/StatusReports/SystemsStatusReport';
-import RemediationWizard from '../Remediation/RemediationWizard';
-import SystemsTable from './SystemsTable';
-import { useSearchParams } from 'react-router-dom';
+import React from 'react';
+import AsyncComponent from '@redhat-cloud-services/frontend-components/AsyncComponent';
+import { fetchSystems } from '../../Utilities/api/api';
 
-const SystemsMainContent = () => {
-  const [searchParams, setSearchParams] = useSearchParams();
-  const dispatch = useDispatch();
-  const [isRemediationOpen, setRemediationOpen] = useState(false);
-  const decodedParams = decodeQueryparams('?' + searchParams.toString());
-  const [remediationIssues, setRemediationIssues] = useState([]);
-  const [resetKey, setResetKey] = useState(0);
-
-  const { hasError, code } = useSelector(({ entities }) => entities?.status || {});
-  const metadata = useSelector(({ SystemsStore }) => SystemsStore?.metadata || {});
-
-  const queryParams = useSelector(({ SystemsStore }) => SystemsStore?.queryParams || {});
-
-  const apply = (queryParams) => {
-    dispatch(changeSystemsParams(queryParams));
-  };
-
-  const setQueryParams = (queryParams) => {
-    dispatch(clearInventoryReducer());
-    dispatch(setSystemParams(queryParams));
-    setResetKey((k) => k + 1);
-  };
-
-  useEffect(() => {
-    apply(decodedParams);
-    return () => dispatch(clearInventoryReducer());
-  }, []);
-
-  const activateRemediationModal = useActivateRemediationModal(
-    setRemediationIssues,
-    setRemediationOpen,
-  );
-
-  if (hasError || metadata?.has_systems === false) {
-    return <ErrorHandler code={code} metadata={metadata} />;
-  }
-
-  return (
-    <>
-      <SystemsStatusReport apply={setQueryParams} queryParams={queryParams} />
-      {(isRemediationOpen && (
-        <RemediationWizard
-          data={remediationIssues}
-          isRemediationOpen
-          setRemediationOpen={setRemediationOpen}
-        />
-      )) ||
-        null}
-      <Main>
-        <SystemsTable
-          resetKey={resetKey}
-          apply={apply}
-          setSearchParams={setSearchParams}
-          activateRemediationModal={activateRemediationModal}
-          decodedParams={decodedParams}
-        />
-      </Main>
-    </>
-  );
-};
+const SystemsMainContent = () => (
+  <AsyncComponent
+    appName='inventory'
+    scope='inventory'
+    module='./SystemsView'
+    queryKeyPrefix='patch-systems'
+    fetchData={async (params) => {
+      const { data, meta } = await fetchSystems(params);
+      return { results: data, total: meta?.total_items ?? 0 }
+    }}
+    columns={(catalog) => [
+      catalog.name({ getValue: (item) => ({ displayName: item?.attributes?.display_name }) }),
+    ]}
+  />
+);
 
 export default SystemsMainContent;

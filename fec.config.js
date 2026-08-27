@@ -27,6 +27,11 @@ module.exports = {
             ]
             : [])
     ],
+    routes: {
+      '/apps/inventory/': {
+        host: 'http://localhost:8004',
+      },
+    },
     moduleFederation: {
         moduleName: insights.appname,
         exposes: {
